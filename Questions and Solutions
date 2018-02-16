@@ -1,0 +1,10 @@
+##601. Human Traffic of Stadium
+##Write a query to display the records which have 3 or more consecutive rows and the amount of people more than 100(inclusive). 
+
+select DISTINCT D1.* from docs D1, docs D2, docs D3
+where (D1.people>=100 and D2.people>=100 and D3.people>=100)
+and ((D2.date-D1.date=1 and D3.date-D2.date = 1) 
+    or (D1.date-D2.date =1 and D3.date-D1.date = 1)
+     or (D1.date-D2.date = 1 and D2.date-D3.date = 1)
+    )
+order by D1.id;
