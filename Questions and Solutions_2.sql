@@ -196,8 +196,14 @@ join t
 on t.month = date_format(a.pay_date, "%Y-%m")
 group by b.department_id, t.month;
 
-
-
+##1098 Unpopular Books
+select distinct a.book_id, a.name
+from books a
+LEFT JOIN orders b
+ON a.book_id = b.book_id
+WHERE available_from < "2019-05-23"
+GROUP BY a.book_id
+HAVING SUM(CASE WHEN  dispatch_date between "2018-06-23" and "2019-06-23" THEN quantity ELSE 0 end) < 10
 
 
 
