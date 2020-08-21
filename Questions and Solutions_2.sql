@@ -111,5 +111,105 @@ SELECT id
     , MAX(IF(month = "Dec", revenue, NULL)) as Dec_Revenue
 from department
 GROUP BY id
+
+##1270 All people report to the given manager
+
+select a.employee_id
+from Employees a
+LEFT JOIN Employees b
+ON a.manager_id = b.employee_id
+LEFT JOIN Employees c
+ON b.manager_id = c.employee_id
+LEFT JOIN Employees d
+ON c.manager_id = d.employee_id
+WHERE d.manager_id = 1 and a.employee_id <> 1
+
+## C626 Exchange Seats
+    ##CTE
+with t as
+
+(select max(id) as m_id from seat)
+
+SELECT (CASE WHEN id%2 = 1 AND id<m_id THEN id+1
+            WHEN id%2 = 0 THEN id-1 
+            ELSE id END) AS id, student     
+FROM seat, t
+ORDER BY id;
+
+    ##Aggretation function in the CASE statement
+SELECT (CASE WHEN id%2 = 1 AND id<(select max(id) from seat) THEN id+1
+            WHEN id%2 = 0 THEN id-1 
+            ELSE id END) AS id, student     
+FROM seat
+ORDER BY id;
+
+## Consecutive Numbers
+select distinct a.Num as ConsecutiveNums
+from logs a, logs b, logs c
+where a.num = b.num and b.num =c.num
+    and a.Id = b.Id - 1 AND b.Id = c.ID -1 
+
+
+## Department Highest Salary
+
+select b.Name as Department
+    , a.name as Employee
+    , a.Salary
+from Employee a, Department b
+where a.departmentid = b.id
+and a.Salary = (select max(salary) from employee c 
+               where c.departmentid = a.departmentid)
+ORDER BY Salary
+
+    ##rank
+with t as
+(select b.name as Department
+    , a.name as Employee
+    , a.Salary
+    , rank() OVER(PARTITION BY a.departmentid order by Salary DESC) as s_rank
+FROM Employee a, Department b
+where a.departmentid = b.id)
+
+select Department, Employee, Salary
+from t
+where s_rank = 1
+order by Salary
+
+##615 Average Salary: Department VS Company
+
+# Write your MySQL query statement below
+
+with t as
+(select distinct date_format(pay_date, "%Y-%m") as month, round(avg(amount),4) as c_salary
+from salary 
+group by date_format(pay_date, "%Y-%m"))
+
+select  distinct date_format(a.pay_date, "%Y-%m") as pay_month
+    , department_id
+    , (case when round(avg(a.amount),4) > t.c_salary then "higher"
+            when round(avg(a.amount),4) < t.c_salary then "lower"
+            else "same" end) as comparison
+from salary a
+join employee b
+on a.employee_id = b.employee_id
+join t
+on t.month = date_format(a.pay_date, "%Y-%m")
+group by b.department_id, t.month;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
 
