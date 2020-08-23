@@ -205,7 +205,76 @@ WHERE available_from < "2019-05-23"
 GROUP BY a.book_id
 HAVING SUM(CASE WHEN  dispatch_date between "2018-06-23" and "2019-06-23" THEN quantity ELSE 0 end) < 10
 
+##1212 Team Scores in Football Tournament
 
+with t as 
+(select host_team as team_id,
+SUM(CASE WHEN host_goals > guest_goals THEN 3 
+     WHEN host_goals < guest_goals THEN 0
+     ELSE 1 END) as points
+FROM matches
+GROUP BY host_team
+
+UNION ALL
+
+select guest_team as team_id,
+SUM(CASE WHEN host_goals > guest_goals THEN 0 
+      WHEN host_goals < guest_goals THEN 3
+      ELSE 1 END) as points
+FROM matches
+group by guest_team)
+
+select teams.team_id
+    , team_name
+    , IFNULL(sum(points),0) as num_points
+FROM t
+RIGHT JOIN teams
+ON t.team_id = teams.team_id
+GROUP BY teams.team_id
+ORDER BY num_points desc, team_id;
+
+##197 Rising Temperature
+
+select a.id
+from weather a, weather b
+where DATEDIFF(a.recordDate, b.recordDate) = 1
+    and a.Temperature > b.Temperature;
+
+
+##1336 Number of Transactions pre Visit
+
+with t1 as
+(select visit_date, user_id, count(*) as num_visits
+from visits
+group by visit_date, user_id),
+
+t2 as
+(select transaction_date, user_id, count(*) as num_tran
+from transactions
+group by transaction_date, user_id),
+
+t3 as
+(SELECT row_number() over () as num_tran
+        FROM transactions
+ union
+ select 0 )
+
+select t3.num_tran as transactions_count, ifnull(visits_count,0) as visits_count
+
+from (
+    select ifnull(t2.num_tran,0) as transactions_count, ifnull(sum(num_visits),0) as visits_count
+    from t1
+        left join t2
+        on t1.user_id = t2.user_id 
+        and t1.visit_date = t2.transaction_date  
+    group by transactions_count) t
+    
+right join t3
+    on t.transactions_count = t3.num_tran
+where t3.num_tran <= (select ifnull(max(num_tran),0) from t2)
+order by t3.num_tran
+
+;
 
 
 
