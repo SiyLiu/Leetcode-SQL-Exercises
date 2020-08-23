@@ -277,6 +277,25 @@ order by t3.num_tran
 ;
 
 
+##1132 Reported Posts
+
+with t as
+
+(select a.action_date, COUNT(distinct b.post_id)/COUNT(distinct a.post_id) as removal_rate
+
+from actions a
+left join removals b
+on a.post_id = b.post_id
+
+where extra = "spam"
+
+group by a.action_date)
+ 
+ select round(avg(removal_rate) * 100,2) as average_daily_percent
+ 
+ from t
+
+
 
 
 
