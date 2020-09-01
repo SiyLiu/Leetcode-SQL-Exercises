@@ -295,6 +295,50 @@ group by a.action_date)
  
  from t
 
+##569 Median Employee Salary
+with t as 
+
+	(select Company, COUNT(*) div 2  as half_num_emply from Employee group by company)
+
+select min(Id), Company, Salary from 
+
+	select a.Company, a.Salary
+	from Employee a, Employee b
+	where a.Company = b.Company and
+		a.Salary < b.Salary
+	group by a.Id
+	having count(b.Id) = (select half_num_emply from t where t.company = b.company)
+
+	union
+
+	select a.Company, a.Salary
+	from Employee a, Employee b
+	where a.Company = b.Company and
+		a.Salary > b.Salary
+	group by a.Id
+	having count(b.Id) = (select half_num_emply from t where t.company = b.company)
+
+) temp
+
+group by Company, Salary
+order by Copmany, Salary
+
+    # Window function
+
+with t as 
+
+(select Id, Company, Salary, 
+ Row_number() OVER(Partition by Company Order by Salary DESC, Id DESC) as row_num, Count(1) OVER(Partition by Company) as num_emply
+
+from employee)
+
+select Id, Company, Salary
+From t
+where (row_num - 1) *2 = num_emply
+    OR  row_num = (num_emply + 1) / 2
+    OR row_num *2 = num_emply
+    
+order by Company, Salary
 
 
 
