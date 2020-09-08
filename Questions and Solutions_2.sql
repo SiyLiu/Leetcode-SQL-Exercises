@@ -341,12 +341,132 @@ where (row_num - 1) *2 = num_emply
 order by Company, Salary
 
 
+##1127 User Purchase Platform
+
+with t1 as
+(select spend_date, user_id, platform, amount
+ from spending
+ group by spend_date, user_id
+ having count(distinct platform) = 1 and platform = "mobile"
+),
+
+t2 as
+(select spend_date, user_id, platform, amount
+ from spending
+ group by spend_date, user_id
+ having count(distinct platform) = 1 and platform = 'desktop'
+),
+
+t3 as
+(select spend_date, user_id, "both" as platform, sum(amount) as amount
+ from spending
+ group by spend_date, user_id
+ having count(distinct platform) = 2
+),
+t4 as
+(select * from 
+ (select "desktop" as platform, 1 as p_id
+union
+ select "mobile", 2 as p_id
+union 
+  select "both", 3 as p_id) tt1,
+ (select distinct spend_date from spending ) tt2
+ )
+
+select  t4.spend_date, t4.platform, ifnull(sum(amount),0) as total_amount, ifnull(count(distinct user_id),0) as total_users
+from 
+(select * from t1
+union 
+select * from t2
+union 
+select * from t3)t
+
+right join t4
+on t.platform = t4.platform and t.spend_date = t4.spend_date
+
+group by t4.spend_date, t4.platform
+order by t4.p_id
 
 
+##1393 Capital Gain/Loss
+
+with t as 
+(select *, (case when operation = "Buy" then -1 
+                else 1 end) as sign
+
+ from stocks)
+ 
+ select stock_name, sum(price * sign)  as capital_gain_loss
+ from t
+ group by stock_name
+ order by capital_gain_loss DESC
 
 
+##1142 User Activity for the Past Days LIMIT
+
+select ifnull(round(coalesce(count(distinct session_id),0)/count(distinct user_id),2),0) as average_sessions_per_user
+from activity
+where activity_date between "2019-06-28" and "2019-07-27"
+ 
+##627 Swap Salary
+
+update salary
+set sex = case when sex = "f " then "m"
+    else "f" end;
 
 
+## 1412 Find the quiest students in all exams
+
+with t as 
+
+(select a.student_id, b.student_name, score , min(score) over w as min_score 
+    , max(score) over w as max_score
+from exam a, student b
+where a.student_id = b.student_id
+window w as 
+(partition by exam_id)
+ )
+ 
+ select distinct student_id
+    , student_name
+from t
+where score > min_score and score < max_score
+and student_id not in
+(select student_id from t where score = max_score
+or score = min_score)
+
+order by student_id
+
+
+##1355 Activity Participants
+ #Approach 1
+
+
+with t as
+
+(select activity, count(1) OVER(partition by activity) as cnt
+from friends)
+
+select distinct activity from t
+where cnt < (select max(cnt) from t) and cnt > (select min(cnt) from t)
+
+ #Approach 2 (nested aggregation functions with window function)
+
+ with t as
+
+WITH t as
+(
+SELECT activity, RANK() OVER (ORDER BY count(activity)) `rank`
+FROM
+Friends
+group by activity
+)
+select activity
+FROM
+t
+where
+`rank` > 1
+and `rank` < (select max(`rank`) FROM t)
 
 
     
