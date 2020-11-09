@@ -469,5 +469,251 @@ where
 and `rank` < (select max(`rank`) FROM t)
 
 
+#1173 immediate food delivery
+
+select SUM(case when order_date = delivery_date then 1 else 0 end)/count(*)
+from delivery
+
+select COUNT(select * from delivery where order_date = delivery_date)/count(*)
+from delivery
+
+# 1384 Total sale amount by year
+
+with t as
+(
+(select product_id, 
+ period_start, '2018' as report_year,
+ (case when year(period_start) > 2018
+  then 0 
+  when year(period_start) = 2018 and year(period_end) = 2018 then datediff(period_end,period_start)+1
+  else datediff('2018-12-31',period_start)+1
+  end) as report_days,average_daily_sales
+ from Sales)
+
+ 
+ union
+ 
+(select product_id, 
+ period_start, '2019' as report_year,
+ (case when year(period_start) > 2019
+  then 0 
+  when year(period_start) = 2019 and year(period_end) = 2019 
+  then datediff(period_end, period_start)+1
+  when year(period_start) = 2019 and year(period_end) > 2019
+  then datediff('2019-12-31', period_start)+1
+  when year(period_start)= 2018 and year(period_end) = 2018 
+  then 0
+  when year(period_start) = 2018 and year(period_end) = 2019 
+  then datediff(period_end,'2019-01-01')+1
+  else 365 end)
+ as report_days,average_daily_sales
+ from Sales)
+ 
+ 
+ union
+ 
+ (select product_id,
+ period_start, '2020' as report_year,
+ (case when year(period_end)<2020 then 0
+ else datediff(period_end, '2020-01-01')+1
+ end) as report_days,average_daily_sales
+ from Sales)
+ )
+ select t.PRODUCT_ID, 
+    b.PRODUCT_NAME,
+    t.REPORT_YEAR,
+    t.report_days * t.average_daily_sales as TOTAL_AMOUNT
+    from t
+    join Product b
+    on t.product_id = b.product_id
+    where t.report_days >0
+    order by product_id, report_year
     
+ 
+ 
+ 
+ #1194 Tournament Winners
+
+ with t as
+(
+select first_player as player
+    , first_score as score
+from matches
+    
+union all
+
+select second_player as player
+    , second_score as score
+from matches
+
+)
+
+select group_id, player_id 
+from 
+    (select *, (rank() over(partition by group_id order by total_score DESC,player_id)) as r
+    from (
+        select t.player as player_id, sum(score) as total_score, group_id
+        from t, Players p
+        where t.player = p.player_id
+        group by player
+) t1
+     )t2
+where r = 1
+        
+#597. Friend Request I
+with t1 as
+(
+select distinct sender_id, send_to_id
+from friend_request
+    ),
+ t2 as
+(
+select distinct requester_id, accepter_id
+from request_accepted)
+
+select 
+round(ifnull((select count(*) from t2)/(select count(*) from t1),0),2) as accept_rate
+
+##1479 Sales by Day of the Week
+
+with t as
+(
+select DAYOFWEEK(a.order_date) as day, sum(a.quantity) as quantity, b.item_category
+from Orders a
+RIGHT JOIN  Items b
+ON a.item_id = b.item_id
+GROUP BY item_category, day
+)
+
+select distinct item_category as CATEGORY,
+MAX(IF((day = 2 AND quantity>0), quantity, 0)) as MONDAY,
+MAX(IF((day = 3 AND quantity>0), quantity, 0)) as TUESDAY,
+MAX(IF((day = 4 AND quantity>0), quantity, 0)) as WEDNESDAY,
+MAX(IF((day = 5 AND quantity>0), quantity, 0)) as THURSDAY,
+MAX(IF((day = 6 AND quantity>0), quantity, 0)) as FRIDAY,
+MAX(IF((day = 7 AND quantity>0), quantity, 0)) as SATURDAY,
+MAX(IF((day = 1 AND quantity>0), quantity, 0)) as SUNDAY
+from t
+group by item_category
+order by item_category
+
+
+##1454. Active Users
+with t as 
+(select distinct id, login_date
+from logins)
+
+SELECT distinct a.id, a.name
+FROM 
+   t l1 
+inner join
+   t l2
+      on l1.id = l2.id and 
+         l2.login_date between l1.login_date and  
+                              date_add( l1.login_date, Interval 4 day )
+inner join
+    Accounts a
+    on l1.id = a.id
+group by 
+   l1.id, l1.login_date
+having 
+   count( distinct l2.login_date ) = 5
+
+    
+##614. Second Degree Follower
+
+#Approach 1
+
+select distinct a.follower, count(distinct b.follower) as num
+from follow a, follow b
+where a.follower = b.followee
+group by a.follower
+order by a.follower
+
+#Approach 2
+
+select followee as follower, count(distinct follower) as num
+from follow
+where followee in (select follower from follow)
+group by 1
+
+##1596. The Most Frequently Ordered Products for Each Customer
+
+
+#Approach 1
+with t as
+
+(select customer_id, a.product_id, COUNT(*) as cnt, product_name
+ from Orders a
+ join Products b
+ on a.product_id = b.product_id
+ GROUP BY customer_id, a.product_id
+)
+
+select customer_id, product_id, product_name
+from 
+(select customer_id, product_id, product_name,
+rank() OVER (partition by customer_id ORDER BY cnt DESC ) as rnk
+from t) temp
+where rnk = 1
+
+#Approach 2
+
+select customer_id, product_id, product_name
+from
+(
+select customer_id, a.product_id, product_name,
+rank() OVER (partition by customer_id ORDER BY count(*) DESC ) as rnk
+from Orders a
+join Products b
+on a.product_id = b.product_id
+group by customer_id, a.product_id
+)t
+where rnk = 1
+order by customer_id, product_id
+
+##1045. Customer Who Bought All Products
+select customer_id
+from Customer 
+GROUP BY customer_id
+HAVING COUNT(distinct product_key) = (select count(*) from Product) 
+
+
+##602. Friends Request II: Who Has the Most Friends
+
+#Approach 1
+with t as
+
+(select requester_id as id
+from request_accepted
+
+union all
+
+select accepter_id as id
+from request_accepted)
+
+select id, num
+from 
+(select id , count(*) as num, rank() over(order by count(*) DESC) as rnk
+from t
+group by id) t2
+
+where rnk = 1
+
+#Approach 2 - limit 
+with t as
+
+(select requester_id as id
+from request_accepted
+
+union all
+
+select accepter_id as id
+from request_accepted)
+
+select id, count(*) as num
+from t
+group by id
+order by num DESC
+limit 1
 
